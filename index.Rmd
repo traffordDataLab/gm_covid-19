@@ -1,0 +1,151 @@
+---
+pagetitle: "Rolling coronavirus cases"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse) ; library(lubridate) ; library(reactable) ; library(shiny)
+
+# Mid-2018 population estimates
+# Source: Nomis / ONS
+# URL: https://www.nomisweb.co.uk/datasets/pestsyoala
+
+population <- read_csv("http://www.nomisweb.co.uk/api/v01/dataset/NM_2002_1.data.csv?geography=1820327961...1820327970,1853882369,2092957699&date=latest&gender=0&c_age=200&measures=20100&select=date_name,geography_name,geography_code,gender_name,c_age_name,measures_name,obs_value,obs_status_name") %>% 
+  select(area_code = GEOGRAPHY_CODE, population = OBS_VALUE)
+
+# Confirmed cases
+# Source: Public Health England
+# URL: https://coronavirus.data.gov.uk
+
+cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases_latest.csv") %>% 
+  filter(`Area type` %in% c("Nation", "Lower tier local authority"),
+         `Area name` %in% c("Bolton", "Bury", "Manchester", "Oldham", "Rochdale", 
+                            "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "England")) %>% 
+  mutate(date = as.Date(`Specimen date`, format = "%Y-%m-%d")) %>% 
+  select(date,
+         area_code = `Area code`,
+         area_name = `Area name`,
+         new_cases = `Daily lab-confirmed cases`) %>% 
+  arrange(date) %>% 
+  group_by(area_code, area_name) %>%
+  complete(date = seq.Date(min(date), max(date), by = "day")) %>% 
+  mutate(new_cases = replace_na(new_cases, 0)) %>% 
+  ungroup() %>% 
+  fill(area_name) %>% 
+  left_join(population, by = "area_code") %>% 
+  filter(date >= max(date) - days(14)) %>% 
+  group_by(area_name, population) %>% 
+  summarise(date = max(date),
+            recent_cases = sum(new_cases),
+            recent_rate = round(recent_cases/population*100000,1)) %>% 
+  distinct(area_name, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  select(date, area_name, recent_cases, population, recent_rate)
+
+gm_cases <- cases %>% 
+  filter(area_name != "England") %>% 
+  summarise(date = max(date), 
+            area_name = "Greater Manchester",
+            recent_cases = sum(recent_cases),
+            population = sum(population), 
+            recent_rate = round(recent_cases/population*100000,1))
+  
+df <- bind_rows(cases, gm_cases) %>% 
+  mutate(area_name = fct_relevel(factor(area_name), "Bolton", "Bury", "Manchester", "Oldham", "Rochdale", 
+                                 "Salford", "Stockport", "Tameside", "Trafford", "Wigan", 
+                                 "Greater Manchester", "England"),
+         recent_cases = as.integer(recent_cases),
+         population = as.integer(population)) %>% 
+  arrange(area_name) %>% 
+  select(area_name, recent_cases, population, recent_rate)
+```
+
+```{r table}
+palette <- function(x) rgb(colorRamp(c("#e6eff3", "#39809e"))(x), maxColorValue = 255)
+
+tbl <- reactable(df,
+                 class = "tbl",
+                 compact = TRUE,
+                 pagination = FALSE,
+                 wrap = FALSE,
+                 defaultColDef = colDef(headerClass = "tbl-header", align = "left"),
+                 rowClass = function(index) {if (df[index, "area_name"] == "Trafford") {"value-highlight"}},
+                 columns = list(
+                   area_name = colDef(name = "Name"),
+                   recent_cases = colDef(name = "Total cases",
+                                         format = colFormat(separators = TRUE),
+                                         align = "left"),
+                   population = colDef(name = "Population",
+                                       format = colFormat(separators = TRUE),
+                                       align = "left"),
+                   recent_rate = colDef(name = "Rate per 100,000",
+                                        align = "left",
+                                        style = function(value) {
+                                          normalized <- (value - min(df$recent_rate)) / (max(df$recent_rate) - min(df$recent_rate))
+                                          color <- palette(normalized)
+                                          list(background = color)
+                                          }))
+)
+```
+
+```{css}
+@import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
+
+.tbl-div {
+  margin: 0 auto;
+  width: 575px;
+  font-family: 'Lato', sans-serif;
+}
+
+.tbl-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.tbl-subtitle {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.tbl {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.tbl a {
+  color: inherit;
+}
+
+.tbl-header {
+  border-bottom: 2px solid #555;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.header:hover {
+  background-color: #eee;
+}
+
+.value-highlight {
+  font-weight: 600;
+}
+
+.tbl-caption {
+  text-align: right;
+  font-size: 12px;
+  color: #212121;
+}
+```
+
+```{r ui}
+div(class = "tbl-div",
+    div(class = "tbl-subtitle",
+        div(class = "tbl-title", "New confirmed cases of coronavirus in the last 14 days"),
+        paste("Last updated on", format(max(cases$date), '%d %B %Y'))
+        ),
+    tbl,
+    div(class = "tbl-caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+    )
+```
