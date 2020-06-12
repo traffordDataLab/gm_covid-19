@@ -1,12 +1,12 @@
 ---
-pagetitle: "Rolling coronavirus cases"
+pagetitle: "COVID-19 cases in GM"
 output: html_document
 ---
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-library(tidyverse) ; library(lubridate) ; library(reactable) ; library(shiny)
+library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny)
 
 # Mid-2018 population estimates
 # Source: Nomis / ONS
@@ -21,8 +21,7 @@ population <- read_csv("http://www.nomisweb.co.uk/api/v01/dataset/NM_2002_1.data
 
 cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases_latest.csv") %>% 
   filter(`Area type` %in% c("Nation", "Lower tier local authority"),
-         `Area name` %in% c("Bolton", "Bury", "Manchester", "Oldham", "Rochdale", 
-                            "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "England")) %>% 
+         `Area name` %in% c("Bolton", "Bury", "Manchester", "Oldham", "Rochdale", "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "England")) %>% 
   mutate(date = as.Date(`Specimen date`, format = "%Y-%m-%d")) %>% 
   select(date,
          area_code = `Area code`,
@@ -33,80 +32,79 @@ cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cas
   complete(date = seq.Date(min(date), max(date), by = "day")) %>% 
   mutate(new_cases = replace_na(new_cases, 0)) %>% 
   ungroup() %>% 
-  fill(area_name) %>% 
-  left_join(population, by = "area_code") %>% 
-  filter(date >= max(date) - days(14)) %>% 
-  group_by(area_name, population) %>% 
-  summarise(date = max(date),
-            recent_cases = sum(new_cases),
-            recent_rate = round(recent_cases/population*100000,1)) %>% 
-  distinct(area_name, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  select(date, area_name, recent_cases, population, recent_rate)
-
-gm_cases <- cases %>% 
-  filter(area_name != "England") %>% 
-  summarise(date = max(date), 
-            area_name = "Greater Manchester",
-            recent_cases = sum(recent_cases),
-            population = sum(population), 
-            recent_rate = round(recent_cases/population*100000,1))
-  
-df <- bind_rows(cases, gm_cases) %>% 
-  mutate(area_name = fct_relevel(factor(area_name), "Bolton", "Bury", "Manchester", "Oldham", "Rochdale", 
-                                 "Salford", "Stockport", "Tameside", "Trafford", "Wigan", 
-                                 "Greater Manchester", "England"),
-         recent_cases = as.integer(recent_cases),
-         population = as.integer(population)) %>% 
-  arrange(area_name) %>% 
-  select(area_name, recent_cases, population, recent_rate)
+  fill(area_name) %>%
+  bind_rows(
+    filter(., area_name != "England") %>% 
+    group_by(., date) %>%
+      summarise(area_code = "E47000001",
+                area_name = "Greater Manchester",
+                date = unique(date),
+                new_cases = sum(new_cases))
+    )
 ```
 
-```{r table}
+### Confirmed cases of coronavirus in Greater Manchester
+
+```{r}
+# confirmed cases within last 14 days
+recent_cases <- cases %>% 
+  filter(date >= max(date) - days(14)) %>% 
+  group_by(area_code, area_name) %>% 
+  summarise(date = max(date),
+            recent_cases = sum(new_cases)) %>%
+  ungroup() %>% 
+  left_join(population, by = "area_code") %>% 
+  mutate(area_name = fct_relevel(factor(area_name), "Bolton", "Bury", "Manchester", "Oldham", "Rochdale",  "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "Greater Manchester", "England"),
+         recent_rate = round(recent_cases/population*100000,1),
+         recent_cases = as.integer(recent_cases),
+         population = as.integer(population)) %>% 
+  select(date, area_name, recent_cases, population, recent_rate) %>% 
+  arrange(area_name) %>% 
+  select(-date)
+
 palette <- function(x) rgb(colorRamp(c("#e6eff3", "#39809e"))(x), maxColorValue = 255)
 
-tbl <- reactable(df,
-                 class = "tbl",
-                 compact = TRUE,
-                 pagination = FALSE,
-                 wrap = FALSE,
-                 defaultColDef = colDef(headerClass = "tbl-header", align = "left"),
-                 rowClass = function(index) {if (df[index, "area_name"] == "Trafford") {"value-highlight"}},
-                 columns = list(
-                   area_name = colDef(name = "Name"),
-                   recent_cases = colDef(name = "Total cases",
-                                         format = colFormat(separators = TRUE),
-                                         align = "left"),
-                   population = colDef(name = "Population",
-                                       format = colFormat(separators = TRUE),
-                                       align = "left"),
-                   recent_rate = colDef(name = "Rate per 100,000",
-                                        align = "left",
-                                        style = function(value) {
-                                          normalized <- (value - min(df$recent_rate)) / (max(df$recent_rate) - min(df$recent_rate))
-                                          color <- palette(normalized)
-                                          list(background = color)
-                                          }))
+tbl <- reactable(recent_cases,
+          class = "tbl",
+          compact = TRUE,
+          pagination = FALSE,
+          wrap = FALSE,
+          defaultColDef = colDef(headerClass = "header", align = "left"),
+          columns = list(
+            area_name = colDef(name = "Name"),
+            recent_cases = colDef(name = "Total cases",
+                                  format = colFormat(separators = TRUE),
+                                  align = "left"),
+            population = colDef(name = "Population",
+                                format = colFormat(separators = TRUE),
+                                align = "left"),
+            recent_rate = colDef(name = "Rate per 100,000",
+                                 align = "left",
+                                 style = function(value) {
+                                   normalized <- (value - min(recent_cases$recent_rate)) / (max(recent_cases$recent_rate) - min(recent_cases$recent_rate))
+                                   color <- palette(normalized)
+                                   list(background = color)
+                                   }))
 )
 ```
 
 ```{css}
 @import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
 
-.tbl-div {
-  margin: 0 auto;
-  width: 575px;
+.graphic-div {
+  margin-left: 10% auto;
+  width: 470px;
   font-family: 'Lato', sans-serif;
 }
 
-.tbl-title {
-  font-size: 20px;
-  font-weight: 600;
+.title {
+  font-size: 16px;
+  font-weight: bold;
 }
 
-.tbl-subtitle {
+.subtitle {
   margin: 8px 0;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .tbl {
@@ -118,7 +116,7 @@ tbl <- reactable(df,
   color: inherit;
 }
 
-.tbl-header {
+.header {
   border-bottom: 2px solid #555;
   font-size: 14px;
   font-weight: bold;
@@ -128,24 +126,60 @@ tbl <- reactable(df,
   background-color: #eee;
 }
 
-.value-highlight {
-  font-weight: 600;
-}
-
-.tbl-caption {
+.caption {
   text-align: right;
   font-size: 12px;
   color: #212121;
 }
 ```
 
-```{r ui}
-div(class = "tbl-div",
-    div(class = "tbl-subtitle",
-        div(class = "tbl-title", "New confirmed cases of coronavirus in the last 14 days"),
-        paste("Last updated on", format(max(cases$date), '%d %B %Y'))
+<div class = "row">
+<div class = "col-sm-6 graphic-div">
+```{r dev=c('svg')}
+# rolling 14-day rate of cases
+rolling_rate <- cases %>% 
+  left_join(population, by = "area_code") %>% 
+  mutate(rate = round(new_cases/population*100000,1), 
+         ma_rate = rollmean(rate, 14, align = "right", fill = NA)) %>% 
+  group_by(area_name) %>% 
+  mutate(label = str_c("<b style = 'color:#333333;font-size:14pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), "</span>"),
+         cum_cases = sum(new_cases)) %>% 
+  ungroup() %>% 
+  mutate(label = fct_reorder(label, cum_cases, .desc = TRUE))
+
+    div(class = "subtitle",
+        div(class = "title", "New confirmed cases per 100,000 population"),
+        paste("14-day moving average, up to", format(max(rolling_rate$date), '%d %B %Y')))
+    
+    ggplot(data = rolling_rate, aes(x = date, y = ma_rate)) +
+  geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
+  geom_line(colour = "#39809E", size = 1) +
+  scale_x_date(date_labels = "%b") +
+  scale_y_continuous(expand = c(0.005, 0.005)) +
+  labs(x = NULL, y = NULL, 
+       title = NULL, subtitle = NULL, caption = NULL) +
+  theme_minimal(base_size = 16, base_family = "Lato") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x = element_markdown(hjust = 0, lineheight = 1.2),
+        axis.text = element_blank()) +
+  facet_wrap(~label)
+    
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+
+```
+</div>
+
+<div class = "col-sm-6">
+```{r table ui}
+div(class = "graphic-div",
+    div(class = "subtitle",
+        div(class = "title", "New confirmed cases of coronavirus in the last 14 days"),
+        paste("up to", format(max(cases$date), '%d %B %Y'))
         ),
     tbl,
-    div(class = "tbl-caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
     )
 ```
+</div>
+</div>
