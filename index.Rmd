@@ -134,7 +134,7 @@ tbl <- reactable(recent_cases,
 ```
 
 <div class = "row">
-<div class = "col-sm-6 graphic-div">
+<div class = "col-md-6 graphic-div">
 ```{r dev=c('svg')}
 # rolling 14-day rate of cases
 rolling_rate <- cases %>% 
@@ -170,7 +170,7 @@ rolling_rate <- cases %>%
 ```
 </div>
 
-<div class = "col-sm-6">
+<div class = "col-md-6">
 ```{r table ui}
 div(class = "graphic-div",
     div(class = "subtitle",
