@@ -93,7 +93,6 @@ tbl <- reactable(recent_cases,
 
 .graphic-div {
   margin-left: 10% auto;
-  width: 470px;
   font-family: 'Lato', sans-serif;
 }
 
@@ -134,7 +133,8 @@ tbl <- reactable(recent_cases,
 ```
 
 <div class = "row">
-<div class = "col-xs-12 col-sm-6 col-md-6 col-lg-6 graphic-div">
+<div class = "col-xs-12 col-sm-6 col-md-6 col-lg-6">
+<div class = "graphic-div">
 ```{r dev=c('svg')}
 # rolling 14-day rate of cases
 rolling_rate <- cases %>% 
@@ -170,9 +170,11 @@ rolling_rate <- cases %>%
 
 ```
 </div>
+</div>
 
+<div class = "col-xs-12 col-sm-6 col-md-6 col-lg-6">
 ```{r table ui}
-div(class = "col-xs-12 col-sm-6 col-md-6 col-lg-6 graphic-div",
+div(class = "graphic-div",
     div(class = "subtitle",
         div(class = "title", "New confirmed cases of coronavirus in the last 14 days"),
         paste("up to", format(max(cases$date), '%d %B %Y'))
@@ -181,4 +183,5 @@ div(class = "col-xs-12 col-sm-6 col-md-6 col-lg-6 graphic-div",
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
     )
 ```
+</div>
 </div>
