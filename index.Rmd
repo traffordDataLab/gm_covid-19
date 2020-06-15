@@ -145,34 +145,34 @@ rolling_rate <- cases %>%
   mutate(label = str_c("<b style = 'color:#333333;font-size:14pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), "</span>"),
          cum_cases = sum(new_cases)) %>% 
   ungroup() %>% 
-  mutate(label = fct_reorder(label, cum_cases, .desc = TRUE))
+  mutate(period = case_when(date >= max(date)-14 ~ "last 14 days", TRUE ~ ""),
+         label = fct_reorder(label, cum_cases, .desc = TRUE))
 
     div(class = "subtitle",
         div(class = "title", "New confirmed cases per 100,000 population"),
         paste("14-day moving average, up to", format(max(rolling_rate$date), '%d %B %Y')))
     
-    ggplot(data = rolling_rate, aes(x = date, y = ma_rate)) +
-  geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
-  geom_line(colour = "#39809E", size = 1) +
-  scale_x_date(date_labels = "%b") +
-  scale_y_continuous(expand = c(0.005, 0.005)) +
-  labs(x = NULL, y = NULL, 
-       title = NULL, subtitle = NULL, caption = NULL) +
-  theme_minimal(base_size = 16, base_family = "Lato") +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        strip.text.x = element_markdown(hjust = 0, lineheight = 1.2),
-        axis.text = element_blank()) +
-  facet_wrap(~label)
+    ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = 1, colour = period)) +
+      geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
+      geom_line(size = 1, show.legend = FALSE) +
+      scale_colour_manual(values = c("#bdbdbd", "last 14 days" = "#39809E")) +
+      scale_x_date(date_labels = "%b") +
+      scale_y_continuous(expand = c(0.005, 0.005)) +
+      labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
+      theme_minimal(base_size = 16, base_family = "Lato") +
+      theme(panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            strip.text.x = element_markdown(hjust = 0, lineheight = 1.2),
+            axis.text = element_blank()) +
+      facet_wrap(~label)
     
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
 
 ```
 </div>
 
-<div class = "col-xs-12 col-sm-6 col-md-6 col-lg-6">
 ```{r table ui}
-div(class = "graphic-div",
+div(class = "col-xs-12 col-sm-6 col-md-6 col-lg-6 graphic-div",
     div(class = "subtitle",
         div(class = "title", "New confirmed cases of coronavirus in the last 14 days"),
         paste("up to", format(max(cases$date), '%d %B %Y'))
@@ -181,5 +181,4 @@ div(class = "graphic-div",
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
     )
 ```
-</div>
 </div>
