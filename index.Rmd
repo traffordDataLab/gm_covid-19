@@ -6,7 +6,7 @@ output: html_document
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggrepel)
+library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggiraph)
 
 # Mid-2018 population estimates
 # Source: Nomis / ONS
@@ -92,12 +92,12 @@ tbl <- reactable(recent_cases,
 @import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
 
 .graphic-div {
-  margin-left: 10% auto;
+  float:left !important;
   font-family: 'Lato', sans-serif;
 }
 
 .title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
 }
 
@@ -133,39 +133,45 @@ tbl <- reactable(recent_cases,
 ```
 
 <div class = "row">
-<div class = "col-sm-12">
+<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
 <div class = "graphic-div">
-```{r fig.width=10, dev=c('svg')}
+```{r}
 # rolling 14-day rate of cases
 rolling_rate <- cases %>% 
   left_join(population, by = "area_code") %>% 
   mutate(rate = round(new_cases/population*100000,1), 
          ma_rate = rollmean(rate, 14, align = "right", fill = NA)) %>% 
   group_by(area_name) %>% 
-  mutate(label = str_c("<b style = 'color:#333333;font-size:14pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), " cases</span>"),
+  mutate(label = str_c("<b style = 'color:#333333;font-size:12pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), " cases</span>"),
          cum_cases = sum(new_cases)) %>% 
   ungroup() %>% 
   mutate(label = fct_reorder(label, cum_cases, .desc = TRUE)) %>% 
-  filter(area_name %in% c("Trafford", "Greater Manchester", "England"))
+  filter(area_name %in% c("Trafford", "Greater Manchester", "England")) %>% 
+  mutate(tooltip =  paste0("<strong>", round(ma_rate,1), "</strong> cases per 100,000<br/>", area_name, "<br/>", date))
 
     div(class = "subtitle",
         div(class = "title", "Daily confirmed cases per 100,000 population"),
         paste("14-day moving average, up to", format(max(rolling_rate$date), '%d %B %Y')))
     
-    ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = 1)) +
+    gg <- ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = 1)) +
       geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
-      geom_line(aes(colour = ifelse(date >= max(date)-14, "#39809E", "#bdbdbd")), 
+      geom_line_interactive(aes(colour = ifelse(date >= max(date)-14, "#39809E", "#bdbdbd"), tooltip = tooltip), 
                 size = 1.2, show.legend = FALSE) +
-      geom_text_repel(aes(label = paste0(" ", format(date, "%d %B"))), data = . %>% group_by(area_name) %>% top_n(1, ma_rate), colour = "#212121", size = 4, nudge_y = 0.2) +
       scale_color_identity() +
       scale_x_date(date_labels = "%b") +
       scale_y_continuous(limits = c(0, 10), expand = c(0.005, 0.005), position = "right") +
       labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
-      theme_minimal(base_size = 14, base_family = "Lato") +
+      theme_minimal(base_size = 16, base_family = "Lato") +
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
             strip.text.x = element_markdown(hjust = 0, lineheight = 1.2)) +
       facet_wrap(~label, nrow = 1)
+    
+    girafe(ggobj = gg, 
+          options = list(
+            opts_sizing(rescale = TRUE),
+            opts_tooltip(use_fill = TRUE),
+            opts_toolbar(saveaspng = FALSE)))
     
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
 
@@ -173,7 +179,7 @@ rolling_rate <- cases %>%
 </div>
 </div>
 
-<div class = "col-sm-12">
+<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
 ```{r table ui}
 div(class = "graphic-div",
     div(class = "subtitle",
