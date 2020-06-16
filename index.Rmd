@@ -6,7 +6,7 @@ output: html_document
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny)
+library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggrepel)
 
 # Mid-2018 population estimates
 # Source: Nomis / ONS
@@ -133,7 +133,7 @@ tbl <- reactable(recent_cases,
 ```
 
 <div class = "row">
-<div class = "col-xs-12 col-sm-12 col-md-12 col-lg-6">
+<div class = "col-sm-12">
 <div class = "graphic-div">
 ```{r fig.width=10, dev=c('svg')}
 # rolling 14-day rate of cases
@@ -142,11 +142,11 @@ rolling_rate <- cases %>%
   mutate(rate = round(new_cases/population*100000,1), 
          ma_rate = rollmean(rate, 14, align = "right", fill = NA)) %>% 
   group_by(area_name) %>% 
-  mutate(area_name = case_when(area_name == "Greater Manchester" ~ "GM",TRUE ~ area_name),
-         label = str_c("<b style = 'color:#333333;font-size:14pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), "</span>"),
+  mutate(label = str_c("<b style = 'color:#333333;font-size:14pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), " cases</span>"),
          cum_cases = sum(new_cases)) %>% 
   ungroup() %>% 
-  mutate(label = fct_reorder(label, cum_cases, .desc = TRUE))
+  mutate(label = fct_reorder(label, cum_cases, .desc = TRUE)) %>% 
+  filter(area_name %in% c("Trafford", "Greater Manchester", "England"))
 
     div(class = "subtitle",
         div(class = "title", "New confirmed cases per 100,000 population"),
@@ -155,17 +155,17 @@ rolling_rate <- cases %>%
     ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = 1)) +
       geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
       geom_line(aes(colour = ifelse(date >= max(date)-14, "#39809E", "#bdbdbd")), 
-                size = 1, show.legend = FALSE) +
+                size = 1.2, show.legend = FALSE) +
+      geom_text_repel(aes(label = paste0(" ", format(date, "%d %B"))), data = . %>% group_by(area_name) %>% top_n(1, ma_rate), colour = "#212121", size = 4, nudge_y = 0.2) +
       scale_color_identity() +
       scale_x_date(date_labels = "%b") +
-      scale_y_continuous(expand = c(0.005, 0.005)) +
+      scale_y_continuous(limits = c(0, 10), expand = c(0.005, 0.005), position = "right") +
       labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
       theme_minimal(base_size = 14, base_family = "Lato") +
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
-            strip.text.x = element_markdown(hjust = 0, lineheight = 1.2),
-            axis.text = element_blank()) +
-      facet_wrap(~label, nrow = 3)
+            strip.text.x = element_markdown(hjust = 0, lineheight = 1.2)) +
+      facet_wrap(~label, nrow = 1)
     
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
 
@@ -173,7 +173,7 @@ rolling_rate <- cases %>%
 </div>
 </div>
 
-<div class = "col-xs-12 col-sm-12 col-md-12 col-lg-6">
+<div class = "col-sm-12">
 ```{r table ui}
 div(class = "graphic-div",
     div(class = "subtitle",
