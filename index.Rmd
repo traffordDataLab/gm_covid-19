@@ -183,7 +183,7 @@ rolling_rate <- cases %>%
 ```{r table ui}
 div(class = "graphic-div",
     div(class = "subtitle",
-        div(class = "title", "Total confirmed cases of coronavirus in the last 14 days"),
+        div(class = "title", "Total confirmed cases in the last 14 days"),
         paste("up to", format(max(cases$date), '%d %B %Y'))
         ),
     tbl,
