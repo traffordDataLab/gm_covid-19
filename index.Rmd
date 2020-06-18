@@ -93,6 +93,7 @@ tbl <- reactable(recent_cases,
 
 .graphic-div {
   float:left !important;
+  width: 450px;
   font-family: 'Lato', sans-serif;
 }
 
@@ -134,6 +135,19 @@ tbl <- reactable(recent_cases,
 
 <div class = "row">
 <div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
+```{r table ui}
+div(class = "graphic-div",
+    div(class = "subtitle",
+        div(class = "title", "Total confirmed cases in the last 14 days"),
+        paste("up to", format(max(cases$date), '%d %B %Y'))
+        ),
+    tbl,
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+    )
+```
+</div>
+
+<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
 <div class = "graphic-div">
 ```{r}
 # rolling 14-day rate of cases
@@ -162,8 +176,10 @@ rolling_rate <- cases %>%
       scale_y_continuous(limits = c(0, 10), expand = c(0.005, 0.005), position = "right") +
       labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
       theme_minimal(base_size = 16, base_family = "Lato") +
-      theme(panel.grid.major = element_blank(),
+      theme(plot.margin = margin(0.5, 0.5, 0, 0.5, "cm"),
+            panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
+            axis.text.y = element_text(size = 10, face = "bold"),
             strip.text.x = element_markdown(hjust = 0, lineheight = 1.2)) +
       facet_wrap(~label, nrow = 1)
     
@@ -177,18 +193,5 @@ rolling_rate <- cases %>%
 
 ```
 </div>
-</div>
-
-<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
-```{r table ui}
-div(class = "graphic-div",
-    div(class = "subtitle",
-        div(class = "title", "Total confirmed cases in the last 14 days"),
-        paste("up to", format(max(cases$date), '%d %B %Y'))
-        ),
-    tbl,
-    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
-    )
-```
 </div>
 </div>
