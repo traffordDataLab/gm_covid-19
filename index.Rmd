@@ -69,6 +69,7 @@ tbl <- reactable(recent_cases,
           compact = TRUE,
           pagination = FALSE,
           wrap = FALSE,
+          resizable = TRUE,
           defaultColDef = colDef(headerClass = "header", align = "left"),
           columns = list(
             area_name = colDef(name = "Name"),
