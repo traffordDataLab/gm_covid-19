@@ -6,14 +6,17 @@ output: html_document
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-library(tidyverse) ; library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggiraph)
+library(tidyverse) ; library(httr) ; library(readxl) ;   library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggiraph)
 
-# Mid-2018 population estimates
-# Source: Nomis / ONS
-# URL: https://www.nomisweb.co.uk/datasets/pestsyoala
+# Mid-2019 population estimates
+# Source: ONS
+# URL: https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland
 
-population <- read_csv("http://www.nomisweb.co.uk/api/v01/dataset/NM_2002_1.data.csv?geography=1820327961...1820327970,1853882369,2092957699&date=latest&gender=0&c_age=200&measures=20100&select=date_name,geography_name,geography_code,gender_name,c_age_name,measures_name,obs_value,obs_status_name") %>% 
-  select(area_code = GEOGRAPHY_CODE, population = OBS_VALUE)
+tmp <- tempfile(fileext = ".xls")
+GET(url = "https://www.ons.gov.uk/file?uri=%2fpeoplepopulationandcommunity%2fpopulationandmigration%2fpopulationestimates%2fdatasets%2fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2fmid2019april2020localauthoritydistrictcodes/ukmidyearestimates20192020ladcodes.xls",
+    write_disk(tmp))
+population <- read_xls(tmp, sheet = 6, skip = 4) %>% 
+  select(area_code = Code, population = `All ages`)
 
 # Confirmed cases
 # Source: Public Health England
@@ -36,7 +39,7 @@ cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cas
   bind_rows(
     filter(., area_name != "England") %>% 
     group_by(., date) %>%
-      summarise(area_code = "E47000001",
+      summarise(area_code = "E11000001",
                 area_name = "Greater Manchester",
                 date = unique(date),
                 new_cases = sum(new_cases))
