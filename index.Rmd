@@ -1,12 +1,12 @@
 ---
-pagetitle: "COVID-19 cases in GM"
+pagetitle: "COVID-19 cases in Trafford"
 output: html_document
 ---
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-library(tidyverse) ; library(httr) ; library(readxl) ;   library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggiraph)
+library(tidyverse) ; library(httr) ; library(readxl) ;   library(lubridate) ; library(reactable) ; library(zoo) ; library(ggtext) ; library(scales) ; library(shiny) ; library(ggiraph) ; library(ggrepel)
 
 # Mid-2019 population estimates
 # Source: ONS
@@ -44,52 +44,6 @@ cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cas
                 date = unique(date),
                 new_cases = sum(new_cases))
     )
-```
-
-## Confirmed cases of coronavirus in Greater Manchester
-
-```{r}
-# confirmed cases within last 14 days
-recent_cases <- cases %>% 
-  filter(date >= max(date) - days(14)) %>% 
-  group_by(area_code, area_name) %>% 
-  summarise(date = max(date),
-            recent_cases = sum(new_cases)) %>%
-  ungroup() %>% 
-  left_join(population, by = "area_code") %>% 
-  mutate(area_name = fct_relevel(factor(area_name), "Bolton", "Bury", "Manchester", "Oldham", "Rochdale",  "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "Greater Manchester", "England"),
-         recent_rate = round(recent_cases/population*100000,1),
-         recent_cases = as.integer(recent_cases),
-         population = as.integer(population)) %>% 
-  select(date, area_name, recent_cases, population, recent_rate) %>% 
-  arrange(area_name) %>% 
-  select(-date)
-
-palette <- function(x) rgb(colorRamp(c("#e6eff3", "#39809e"))(x), maxColorValue = 255)
-
-tbl <- reactable(recent_cases,
-          class = "tbl",
-          compact = TRUE,
-          pagination = FALSE,
-          wrap = FALSE,
-          resizable = TRUE,
-          defaultColDef = colDef(headerClass = "header", align = "left"),
-          columns = list(
-            area_name = colDef(name = "Name"),
-            recent_cases = colDef(name = "Total cases",
-                                  format = colFormat(separators = TRUE),
-                                  align = "left"),
-            population = colDef(name = "Population",
-                                format = colFormat(separators = TRUE),
-                                align = "left"),
-            recent_rate = colDef(name = "Rate per 100,000",
-                                 align = "left",
-                                 style = function(value) {
-                                   normalized <- (value - min(recent_cases$recent_rate)) / (max(recent_cases$recent_rate) - min(recent_cases$recent_rate))
-                                   color <- palette(normalized)
-                                   list(background = color)
-                                   }))
-)
 ```
 
 ```{css}
@@ -137,65 +91,168 @@ tbl <- reactable(recent_cases,
 }
 ```
 
+## Confirmed cases of coronavirus in Trafford
+Last updated: `r format(Sys.time(), '%H:%M, %d %B %Y')`
+
+<br />
+<div class="row">
+<div class = "col-md-6">
+<div class = "graphic-div">
+```{r, dev = 'svg'}
+rolling_cases <- cases %>% 
+  filter(area_name == "Trafford") %>% 
+  mutate(ma_cases = rollmean(new_cases, 14, align = "right", fill = NA)) 
+
+    div(class = "subtitle",
+        div(class = "title", "Daily confirmed cases"),
+        paste("Trafford, to", format(max(rolling_cases$date), '%d %B %Y')))
+
+ggplot() +
+  geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
+  geom_col(data = rolling_cases, aes(x = date, y = new_cases), fill = "#39809E", alpha = 0.6) +
+  geom_line(data = rolling_cases, aes(x = date, y = ma_cases, colour = "ma_cases"), size = 1) +
+  scale_colour_manual(values = c("ma_cases" = "#39809E"), name = NULL, labels = "14-day rolling average") +
+  scale_x_date(date_labels = "%b") +
+  scale_y_continuous(expand = c(0.005, 0.005), position = "right") +
+  labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
+  theme_minimal(base_size = 20, base_family = "Lato") +
+  theme(plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(0.8, 1.005),
+        legend.direction = "horizontal",
+        legend.text = element_text(size = 12),
+        axis.text.y = element_text(face = "bold")) 
+
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+```
+</div>
+</div>
+  
+<div class = "col-md-6">
+<div class = "graphic-div">
+```{r, dev = 'svg'}
+total_cases <- cases %>% 
+  filter(area_name == "Trafford") %>% 
+  arrange(date) %>% 
+  mutate(cum_cases = cumsum(new_cases))
+
+    div(class = "subtitle",
+        div(class = "title", "Cumulative cases"),
+        paste("Trafford, to", format(max(total_cases$date), '%d %B %Y')))
+
+ggplot(data = total_cases, aes(x = date, y = cum_cases, group = 1)) +
+  geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
+  geom_line(colour = "#39809E", size = 1.2) +
+  scale_x_date(date_labels = "%b") +
+  scale_y_continuous(expand = c(0.005, 0.005), position = "right") +
+  labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
+  theme_minimal(base_size = 20, base_family = "Lato") +
+  theme(plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(face = "bold"))
+
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+```
+</div>
+</div>
+</div>
+<br />
+
 <div class = "row">
-<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
-```{r table ui}
+<div class = "col-md-6">
+<div class = "graphic-div">
+```{r, dev = 'svg'}
+# rolling 14-day rate of cases
+rolling_rate <- cases %>% 
+  filter(area_name %in% c("Trafford", "Greater Manchester", "England")) %>%
+  arrange(area_name, date) %>%
+  left_join(population, by = "area_code") %>% 
+  mutate(rate = round(new_cases/population*100000,1), 
+         ma_rate = rollmean(rate, 14, align = "right", fill = NA),
+         area_name = fct_relevel(area_name, "Trafford", "Greater Manchester", "England")) 
+
+    div(class = "subtitle",
+        div(class = "title", "Daily confirmed cases per 100,000 population"),
+        paste("14-day moving average, to", format(max(rolling_rate$date), '%d %B %Y')))
+
+ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = area_name)) +
+  geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
+  geom_line(aes(colour = area_name), size = 1) +
+  # geom_text_repel(data = filter(rolling_rate, date == max(date)),
+  #                 aes(label = round(ma_rate,1), colour = area_name), 
+  #                 direction = "y", hjust = 0, nudge_x = 1, point.padding = NA, show.legend = FALSE) +
+  scale_colour_manual(values = c("Trafford" = "#00AFBB", "Greater Manchester" = "#E7B800", "England" = "#757575")) +
+  scale_x_date(date_labels = "%b") + # expand = c(0, 7), 
+  scale_y_continuous(expand = c(0.005, 0.005), position = "right") +
+  labs(x = NULL, y = NULL, title = "", subtitle = NULL, caption = NULL, colour = NULL) +
+  theme_minimal(base_size = 20, base_family = "Lato") +
+  theme(plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(0.68, 1.1),
+        legend.direction = "horizontal",
+        legend.text = element_text(size = 12),
+        axis.text.y = element_text(face = "bold")) 
+
+    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
+```
+</div>
+</div>
+
+<div class = "col-md-6">
+```{r table}
+# confirmed cases within last 14 days
+recent_cases <- cases %>% 
+  filter(date >= max(date) - days(14)) %>% 
+  group_by(area_code, area_name) %>% 
+  summarise(date = max(date),
+            recent_cases = sum(new_cases)) %>%
+  ungroup() %>% 
+  left_join(population, by = "area_code") %>% 
+  mutate(area_name = fct_relevel(factor(area_name), "Bolton", "Bury", "Manchester", "Oldham", "Rochdale",  "Salford", "Stockport", "Tameside", "Trafford", "Wigan", "Greater Manchester", "England"),
+         recent_rate = round(recent_cases/population*100000,1),
+         recent_cases = as.integer(recent_cases),
+         population = as.integer(population)) %>% 
+  select(date, area_name, recent_cases, population, recent_rate) %>% 
+  arrange(area_name) %>% 
+  select(-date)
+
+palette <- function(x) rgb(colorRamp(c("#e6eff3", "#39809e"))(x), maxColorValue = 255)
+
+tbl <- reactable(recent_cases,
+          class = "tbl",
+          compact = TRUE,
+          pagination = FALSE,
+          wrap = FALSE,
+          resizable = TRUE,
+          defaultColDef = colDef(headerClass = "header", align = "left"),
+          columns = list(
+            area_name = colDef(name = "Name"),
+            recent_cases = colDef(name = "Total cases",
+                                  format = colFormat(separators = TRUE),
+                                  align = "left"),
+            population = colDef(name = "Population",
+                                format = colFormat(separators = TRUE),
+                                align = "left"),
+            recent_rate = colDef(name = "Rate per 100,000",
+                                 align = "left",
+                                 style = function(value) {
+                                   normalized <- (value - min(recent_cases$recent_rate)) / (max(recent_cases$recent_rate) - min(recent_cases$recent_rate))
+                                   color <- palette(normalized)
+                                   list(background = color)
+                                   }))
+)
+
 div(class = "graphic-div",
     div(class = "subtitle",
-        div(class = "title", "New confirmed cases of coronavirus in the last 14 days"),
-        paste("up to", format(max(cases$date), '%d %B %Y'))
+        div(class = "title", "New confirmed cases in the last 14 days"),
+        paste("to", format(max(cases$date), '%d %B %Y'))
         ),
     tbl,
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
     )
 ```
-</div>
-
-<div class = "col-xs-12 col-sm-12 col-md-6 col-lg-6">
-<div class = "graphic-div">
-```{r}
-# rolling 14-day rate of cases
-rolling_rate <- cases %>% 
-  left_join(population, by = "area_code") %>% 
-  mutate(rate = round(new_cases/population*100000,1), 
-         ma_rate = rollmean(rate, 14, align = "right", fill = NA)) %>% 
-  group_by(area_name) %>% 
-  mutate(label = str_c("<b style = 'color:#333333;font-size:12pt;'>", area_name, "</b><br/><span style = 'color:#757575;'>", comma(sum(new_cases)), " cases</span>"),
-         cum_cases = sum(new_cases)) %>% 
-  ungroup() %>% 
-  mutate(label = fct_reorder(label, cum_cases, .desc = TRUE)) %>% 
-  filter(area_name %in% c("Trafford", "Greater Manchester", "England")) %>% 
-  mutate(tooltip =  paste0("<strong>", round(ma_rate,1), "</strong> cases per 100,000<br/>", area_name, "<br/>", date))
-
-    div(class = "subtitle",
-        div(class = "title", "Daily confirmed cases per 100,000 population"),
-        paste("14-day moving average, up to", format(max(rolling_rate$date), '%d %B %Y')))
-    
-    gg <- ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = 1)) +
-      geom_hline(yintercept = 0, size = 0.3, colour = "#333333") +
-      geom_line_interactive(aes(colour = ifelse(date >= max(date)-14, "#39809E", "#bdbdbd"), tooltip = tooltip), 
-                size = 1.2, show.legend = FALSE) +
-      scale_color_identity() +
-      scale_x_date(date_labels = "%b") +
-      scale_y_continuous(limits = c(0, 10), expand = c(0.005, 0.005), position = "right") +
-      labs(x = NULL, y = NULL, title = NULL, subtitle = NULL, caption = NULL) +
-      theme_minimal(base_size = 16, base_family = "Lato") +
-      theme(plot.margin = margin(0.5, 0.5, 0, 0.5, "cm"),
-            panel.grid.major = element_blank(),
-            panel.grid.minor = element_blank(),
-            axis.text.y = element_text(size = 10, face = "bold"),
-            strip.text.x = element_markdown(hjust = 0, lineheight = 1.2)) +
-      facet_wrap(~label, nrow = 1)
-    
-    girafe(ggobj = gg, 
-          options = list(
-            opts_sizing(rescale = TRUE),
-            opts_tooltip(use_fill = TRUE),
-            opts_toolbar(saveaspng = FALSE)))
-    
-    div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
-
-```
-</div>
 </div>
 </div>
