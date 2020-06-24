@@ -50,8 +50,6 @@ cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cas
 @import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
 
 .graphic-div {
-  float:left !important;
-  width: 450px;
   font-family: 'Lato', sans-serif;
 }
 
@@ -95,8 +93,9 @@ cases <- read_csv("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cas
 Last updated: `r format(Sys.time(), '%H:%M, %d %B %Y')`
 
 <br />
+<div class="container-fluid">
 <div class="row">
-<div class = "col-md-6">
+<div class = "col-sm-6">
 <div class = "graphic-div">
 ```{r, dev = 'svg'}
 rolling_cases <- cases %>% 
@@ -129,7 +128,7 @@ ggplot() +
 </div>
 </div>
   
-<div class = "col-md-6">
+<div class = "col-sm-6">
 <div class = "graphic-div">
 ```{r, dev = 'svg'}
 total_cases <- cases %>% 
@@ -161,7 +160,7 @@ ggplot(data = total_cases, aes(x = date, y = cum_cases, group = 1)) +
 <br />
 
 <div class = "row">
-<div class = "col-md-6">
+<div class = "col-sm-6">
 <div class = "graphic-div">
 ```{r, dev = 'svg'}
 # rolling 14-day rate of cases
@@ -201,7 +200,7 @@ ggplot(data = rolling_rate, aes(x = date, y = ma_rate, group = area_name)) +
 </div>
 </div>
 
-<div class = "col-md-6">
+<div class = "col-sm-6">
 ```{r table}
 # confirmed cases within last 14 days
 recent_cases <- cases %>% 
@@ -224,6 +223,7 @@ palette <- function(x) rgb(colorRamp(c("#e6eff3", "#39809e"))(x), maxColorValue 
 tbl <- reactable(recent_cases,
           class = "tbl",
           compact = TRUE,
+          fullWidth = TRUE,
           pagination = FALSE,
           wrap = FALSE,
           resizable = TRUE,
@@ -254,5 +254,6 @@ div(class = "graphic-div",
     div(class = "caption", p("Source: ", a("Public Health England", href = 'https://coronavirus.data.gov.uk/', target = "_blank")))
     )
 ```
+</div>
 </div>
 </div>
