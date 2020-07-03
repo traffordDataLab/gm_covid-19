@@ -1,2 +1,2 @@
 # gm_covid-19
-Rolling rate of coronavirus cases in Greater Manchester
+Data visualisations and analysis relating to confirmed cases of coronavirus in Greater Manchester.
