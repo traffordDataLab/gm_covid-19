@@ -100,8 +100,8 @@ reactable(
   columns = list(
     area_name = colDef(name = "Local authority"),
     covid_deaths = colDef(header = with_tooltip("COVID-19 deaths", "Deaths per 100,000 population up to 31 July 2020 | Source: ONS")),
-    bame = colDef(header = with_tooltip("BAME", "Source: 2011 Census"), format = colFormat(percent = TRUE, digits = 1)),
-    over80 = colDef(header = with_tooltip("Over 80s", "Source: Mid-2019 population estimates"), format = colFormat(percent = TRUE, digits = 1)),
+    bame = colDef(header = with_tooltip("BAME", "Black, Asian and Minority Ethnic group | Source: 2011 Census"), format = colFormat(percent = TRUE, digits = 1)),
+    over80 = colDef(header = with_tooltip("Over 80s", "Residents aged 80 or over | Source: Mid-2019 population estimates"), format = colFormat(percent = TRUE, digits = 1)),
     income = colDef(header = with_tooltip("Income deprivation", "Rank of average score | Source: IoD 2019")),
     overcrowded = colDef(header = with_tooltip("Overcrowded housing", "Households with an occupancy rating of -1 or below | Source: 2011 Census"), format = colFormat(percent = TRUE, digits = 1))
   )
